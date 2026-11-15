@@ -1,3 +1,5 @@
+> ⬇️ **[Pobierz / Download Samotnik (DMG)](https://github.com/Carrot79PL/Samotnik/releases/latest)** · macOS 14+, Apple Silicon · darmowa / free · pierwsze uruchomienie: prawy przycisk → Otwórz
+
 # Samotnik
 
 Spokojna gra logiczna Samotnik (peg solitaire) na macOS, z białymi i czarnymi kulkami na trójwymiarowej planszy. Gra jest napisana w Swift i SceneKit, bez silnika i bez zewnętrznych zależności. Wszystkie tekstury i muzyka powstają w kodzie.
