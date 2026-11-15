@@ -4,6 +4,8 @@ Spokojna gra logiczna Samotnik (peg solitaire) na macOS, z białymi i czarnymi k
 
 **Wersja:** 1.0  ·  **Autor:** Tomasz Marchewka
 
+![Samotnik — rozgrywka na planszy Mały krzyż](docs/screenshot.jpg)
+
 ## Zasady
 
 Kulka przeskakuje sąsiednią kulkę w poziomie lub w pionie i ląduje na wolnym polu za nią. Przeskoczona kulka znika z planszy. Celem jest zostawić jak najmniej kulek, najlepiej jedną.
