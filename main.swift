@@ -379,97 +379,46 @@ final class HUD: SKScene {
         o.run(.sequence([.fadeOut(withDuration: 0.2), .removeFromParent()]))
     }
 
-    /// Mały znak studia w prawym dolnym rogu.
+    /// Podpis studia w prawym dolnym rogu (taki sam jak w Bilardzie).
     func layoutSign() {
         sign.removeAllChildren()
-        let h = size.height, mh = h * 0.045, mw = mh * 160 / 310
-        var x = size.width - pad
-        if let wt = wordmarkTexture(widthPx: h * 0.15 * px) {
-            let ws = SKSpriteNode(texture: wt, size: CGSize(width: h * 0.15, height: h * 0.0225))
-            ws.anchorPoint = CGPoint(x: 1, y: 0.5)
-            ws.position = CGPoint(x: x, y: pad * 0.6 + mh * 0.35)
-            if theme.light { ws.color = theme.textColor; ws.colorBlendFactor = 1 }   // biały napis studia nie zniknie na jasnym tle
-            sign.addChild(ws)
-            x -= h * 0.15 + mw * 0.6
-        }
-        for i in 0..<4 {
-            let s = SKSpriteNode(texture: SKTexture(cgImage: markPart(i, height: mh * px)), size: CGSize(width: mw, height: mh))
-            s.position = CGPoint(x: x - mw / 2, y: pad * 0.6 + mh * 0.35)
-            sign.addChild(s)
-        }
+        guard let url = Bundle.main.url(forResource: "podpis_logo", withExtension: "png"),
+              let img = NSImage(contentsOf: url)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        let w = max(120, size.height * 0.17)
+        let sp = SKSpriteNode(texture: SKTexture(cgImage: img), size: CGSize(width: w, height: w * 292 / 800))
+        sp.anchorPoint = CGPoint(x: 1, y: 0)
+        sp.position = CGPoint(x: size.width - pad, y: pad * 0.6)
+        if theme.light { sp.color = theme.textColor; sp.colorBlendFactor = 1 }
+        sign.addChild(sp)
     }
 
     // MARK: Intro
 
+    var intro3d: Intro3DView?
     func playIntro(done: @escaping () -> Void) {
         introDone = done
-        let w = size.width, h = size.height
         introBuilt = size
-        let o = SKNode()
-        o.zPosition = 200
-        let mh = h * 0.3, mw = mh * 160 / 310
-        let cx = w / 2, cy = h * 0.56
-
-        let glow = makeTexture(256, 256) { ctx in
-            ctx.drawRadialGradient(gradient([rgb(0xFF7A22, 0.5), rgb(0xFF7A22, 0)], [0, 1]),
-                                   startCenter: CGPoint(x: 128, y: 128), startRadius: 0,
-                                   endCenter: CGPoint(x: 128, y: 128), endRadius: 128, options: [])
+        intro = SKNode()          // znacznik: intro trwa
+        let host = NSApp.windows.first(where: { $0.isVisible && !($0 is NSPanel) })?.contentView
+        Intro3DView.marbleMaker = { i, white in
+            let st = MarbleSet.all[0]
+            return marbleMaterial(white ? st.a : st.b, seed: UInt64(i) &* 7919 &+ 5)
         }
-        let back = SKSpriteNode(color: Theme.dark.bgColor, size: CGSize(width: w * 4, height: h * 4))  // logo zawsze na ciemnym tle
-        back.position = CGPoint(x: w / 2, y: h / 2)
-        back.zPosition = -1
-        o.addChild(back)
-        let g = SKSpriteNode(texture: glow, size: CGSize(width: mh * 1.15, height: mh * 1.15))
-        g.position = CGPoint(x: cx, y: cy)
-        g.alpha = 0
-        g.blendMode = .add
-        g.run(.fadeAlpha(to: 0.28, duration: 1.8))
-        o.addChild(g)
-
-        for i in 0..<3 {
-            let s = SKSpriteNode(texture: SKTexture(cgImage: markPart(i, height: mh * px)), size: CGSize(width: mw, height: mh))
-            s.position = CGPoint(x: cx, y: cy - mh * 0.12)
-            s.alpha = 0
-            let a = SKAction.group([.fadeIn(withDuration: 0.5), .moveTo(y: cy, duration: 0.55)]); a.timingMode = .easeOut
-            s.run(.sequence([.wait(forDuration: 0.25 + Double(i) * 0.18), a]))
-            o.addChild(s)
-        }
-        let lv = SKSpriteNode(texture: SKTexture(cgImage: markPart(3, height: mh * px)), size: CGSize(width: mw, height: mh))
-        lv.anchorPoint = CGPoint(x: 0.5, y: 220.0 / 310)
-        lv.position = CGPoint(x: cx, y: cy - mh / 2 + mh * 220 / 310)
-        lv.yScale = 0.001
-        let grow = SKAction.scaleY(to: 1.08, duration: 0.35); grow.timingMode = .easeOut
-        let settle = SKAction.scaleY(to: 1, duration: 0.2); settle.timingMode = .easeInEaseOut
-        lv.run(.sequence([.wait(forDuration: 0.95), grow, settle]))
-        o.addChild(lv)
-
-        let ww = min(w * 0.42, h * 0.8)
-        if let wt = wordmarkTexture(widthPx: ww * px) {
-            let ws = SKSpriteNode(texture: wt, size: CGSize(width: ww, height: ww * 0.15))
-            ws.position = CGPoint(x: cx, y: cy - mh / 2 - h * 0.08)
-            ws.alpha = 0
-            ws.xScale = 0.94
-            let a = SKAction.group([.fadeIn(withDuration: 0.9), .scaleX(to: 1, duration: 0.9)]); a.timingMode = .easeOut
-            ws.run(.sequence([.wait(forDuration: 1.3), a]))
-            o.addChild(ws)
-        }
-        o.run(.sequence([.wait(forDuration: 4.0), .fadeOut(withDuration: 1.1), .run { [weak self] in DispatchQueue.main.async { locked { self?.finishIntro() } } }]))
-        addChild(o)
-        intro = o
-        curtain.run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))   // intro ma własne ciemne tło
+        let v = Intro3DView(frame: host?.bounds ?? .zero, kind: .marbles)
+        v.autoresizingMask = [.width, .height]
+        host?.addSubview(v)
+        v.onDone = { [weak self] in DispatchQueue.main.async { locked { self?.finishIntro() } } }
+        v.build()
+        intro3d = v
+        curtain.run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))
     }
 
-    func skipIntro() {
-        guard let o = intro else { return }
-        o.removeAllActions()
-        o.run(.sequence([.fadeOut(withDuration: 0.35), .run { [weak self] in DispatchQueue.main.async { locked { self?.finishIntro() } } }]))
-    }
+    func skipIntro() { intro3d?.finish() }
 
     private func finishIntro() {
         guard intro != nil else { return }
-        intro?.removeFromParent()
-        intro = nil
-        sign.run(.fadeAlpha(to: 0.5, duration: 1.2))
+        intro = nil; intro3d = nil
+        sign.run(.fadeAlpha(to: 0.6, duration: 1.2))
         introDone?()
         introDone = nil
     }
