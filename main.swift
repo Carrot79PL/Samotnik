@@ -399,12 +399,8 @@ final class HUD: SKScene {
         introDone = done
         introBuilt = size
         intro = SKNode()          // znacznik: intro trwa
-        let host = NSApp.windows.first(where: { $0.isVisible && !($0 is NSPanel) })?.contentView
-        if let host {
-            TMIntro.play(in: host) { [weak self] in locked { self?.finishIntro() } }
-        } else {
-            DispatchQueue.main.async { [weak self] in locked { self?.finishIntro() } }
-        }
+        // intro studia gra już w AppDelegate (przed zbudowaniem gry) — tu tylko domykamy stan HUD
+        DispatchQueue.main.async { [weak self] in locked { self?.finishIntro() } }
         curtain.run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))
     }
 
@@ -1951,9 +1947,9 @@ final class Game: NSObject, SCNSceneRendererDelegate {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
-    var game: Game!
+    var game: Game?
     var fullScreenObserver: NSObjectProtocol?
-    let audio = Audio()
+    lazy var audio = Audio()      // silnik dźwięku i muzyka powstają dopiero po intro
 
     func applicationDidFinishLaunching(_ n: Notification) {
         buildMenu()
@@ -1965,44 +1961,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Samotnik"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.backgroundColor = bgColor
+        window.backgroundColor = .black
         window.collectionBehavior = [.fullScreenPrimary]
         window.minSize = NSSize(width: 820, height: 560)
         window.acceptsMouseMovedEvents = true
 
         let container = NSView(frame: rect)
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.black.cgColor
+        window.contentView = container
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        // 1) intro studia rusza natychmiast na czarnym oknie; 2) gra buduje się dopiero w completion
+        TMIntro.play(in: container) { [weak self] in
+            locked { self?.buildGame(in: container, rect: rect) }
+        }
+        if !CommandLine.arguments.contains("--window") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.window.toggleFullScreen(nil) }
+        }
+    }
+
+    /// Cała właściwa gra (scena, tekstury, audio, renderer, timery, menu) — wołane dopiero po intro.
+    func buildGame(in container: NSView, rect: NSRect) {
+        let rect = container.bounds.width > 10 ? container.bounds : rect
         let view = GameView(frame: rect, options: [SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue])
         let overlay = OverlayView(frame: rect)
         for v in [view, overlay] as [NSView] {
             v.autoresizingMask = [.width, .height]
-            container.addSubview(v)
+            container.addSubview(v, positioned: .below, relativeTo: nil)   // pod widokiem intra, który jeszcze się wygasza
         }
-        window.contentView = container
-        game = Game(view: view, overlay: overlay, audio: audio)
-        window.center()
-        window.makeKeyAndOrderFront(nil)
+        window.backgroundColor = bgColor
+        let g = Game(view: view, overlay: overlay, audio: audio)
+        game = g
         window.makeFirstResponder(view)
-        NSApp.activate(ignoringOtherApps: true)
-
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeBackingPropertiesNotification, object: window, queue: .main) { [weak self] _ in
-            locked { self?.game.resized() }
+            locked { self?.game?.resized() }
         }
-        // intro rusza dopiero, gdy okno ma docelowy rozmiar (po wejściu w pełny ekran) — logo od razu we właściwej skali
-        var started = false
-        let begin = { [weak self] in
-            guard let self, !started else { return }
-            started = true
-            locked { self.game.resized(); self.game.start() }
-        }
-        if CommandLine.arguments.contains("--window") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { begin() }
-        } else {
-            fullScreenObserver = NotificationCenter.default.addObserver(forName: NSWindow.didEnterFullScreenNotification, object: window, queue: .main) { _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { begin() }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.window.toggleFullScreen(nil) }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { begin() }      // na wypadek, gdyby pełny ekran się nie włączył
-        }
+        g.resized()
+        g.start()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
@@ -2028,9 +2026,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = main
     }
 
-    @objc func showMenu() { locked { if game.mode != .intro { game.openMenu() } } }
-    @objc func undo() { locked { game.undo() } }
-    @objc func toggleMusic() { locked { game.toggleMusic() } }
+    @objc func showMenu() { locked { if let g = game, g.mode != .intro { g.openMenu() } } }
+    @objc func undo() { locked { game?.undo() } }
+    @objc func toggleMusic() { locked { game?.toggleMusic() } }
 }
 
 let app = NSApplication.shared
