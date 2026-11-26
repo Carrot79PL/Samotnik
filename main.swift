@@ -400,16 +400,11 @@ final class HUD: SKScene {
         introBuilt = size
         intro = SKNode()          // znacznik: intro trwa
         let host = NSApp.windows.first(where: { $0.isVisible && !($0 is NSPanel) })?.contentView
-        Intro3DView.marbleMaker = { i, white in
-            let st = MarbleSet.all[0]
-            return marbleMaterial(white ? st.a : st.b, seed: UInt64(i) &* 7919 &+ 5)
+        if let host {
+            TMIntro.play(in: host) { [weak self] in locked { self?.finishIntro() } }
+        } else {
+            DispatchQueue.main.async { [weak self] in locked { self?.finishIntro() } }
         }
-        let v = Intro3DView(frame: host?.bounds ?? .zero, kind: .marbles)
-        v.autoresizingMask = [.width, .height]
-        host?.addSubview(v)
-        v.onDone = { [weak self] in DispatchQueue.main.async { locked { self?.finishIntro() } } }
-        v.build()
-        intro3d = v
         curtain.run(.sequence([.fadeOut(withDuration: 0.25), .removeFromParent()]))
     }
 
