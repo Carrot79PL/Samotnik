@@ -23,7 +23,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleExecutable</key><string>Samotnik</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.1</string>
+  <key>CFBundleShortVersionString</key><string>1.2</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.puzzle-games</string>
